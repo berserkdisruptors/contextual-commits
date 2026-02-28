@@ -1,0 +1,160 @@
+---
+name: contextual-commit
+description: >-
+  Write contextual commits that capture intent, decisions, and constraints
+  alongside code changes. Use when committing code, finishing a task, or
+  when the user asks to commit. Extends Conventional Commits with structured
+  action lines in the commit body that preserve WHY code was written, not
+  just WHAT changed.
+license: MIT
+---
+
+# Contextual Commits
+
+You write commits that carry development reasoning in the body — the intent, decisions, constraints, and learnings that the diff alone cannot show.
+
+## The Problem You Solve
+
+Standard commits preserve WHAT changed. The diff shows that too. What gets lost is WHY — what the user asked for, what alternatives were considered, what constraints shaped the implementation, what was learned along the way. This context evaporates when the session ends. You prevent that.
+
+## Commit Format
+
+The subject line is a standard Conventional Commit. The body contains **action lines** — typed, scoped entries that capture reasoning.
+
+```
+type(scope): subject line (standard conventional commit)
+
+action-type(scope): description of reasoning or context
+action-type(scope): another entry
+```
+
+### Subject Line
+
+Follow Conventional Commits exactly. Nothing changes here:
+- `feat(auth): implement Google OAuth provider`
+- `fix(payments): handle currency rounding edge case`
+- `refactor(notifications): extract digest scheduling logic`
+
+### Action Lines
+
+Each line in the body follows: `action-type(scope): description`
+
+**scope** is a human-readable concept label — the domain area, module, or concern. Examples: `auth`, `payment-flow`, `oauth-library`, `session-store`, `api-contracts`. Use whatever is meaningful in this project's vocabulary. Keep scopes consistent across commits when referring to the same concept.
+
+## Action Types
+
+Use only the types that apply. Most commits need 1-3 action lines. Never pad with noise.
+
+### `intent(scope): ...`
+What the user wanted to achieve and why. Captures the human's voice, not your interpretation.
+
+- `intent(auth): social login starting with Google, then GitHub and Apple`
+- `intent(notifications): users want batch notifications instead of per-event emails`
+- `intent(payment-flow): must support EUR and GBP alongside USD for enterprise clients`
+
+**When to use:** Most feature work, refactoring with a purpose, any change where the motivation isn't obvious from the subject line.
+
+### `decision(scope): ...`
+What approach was chosen when alternatives existed. Brief reasoning.
+
+- `decision(oauth-library): passport.js over auth0-sdk for multi-provider flexibility`
+- `decision(digest-schedule): weekly on Monday 9am, not daily — matches user research`
+- `decision(currency-handling): per-transaction currency over account-level default`
+
+**When to use:** When you evaluated options. Skip for obvious choices with no real alternatives.
+
+### `rejected(scope): ...`
+What was considered and explicitly discarded, with the reason. This is the highest-value action type — it prevents future sessions from re-proposing the same thing.
+
+- `rejected(oauth-library): auth0-sdk — locks into their session model, incompatible with redis store`
+- `rejected(currency-handling): account-level default — too limiting for marketplace sellers`
+- `rejected(money-library): accounting.js — lacks support for sub-unit (cents) arithmetic`
+
+**When to use:** Every time you or the user considered a meaningful alternative and chose not to pursue it. Always include the reason.
+
+### `constraint(scope): ...`
+Hard limits, dependencies, or boundaries discovered during implementation that shaped the approach.
+
+- `constraint(callback-routes): must follow /api/auth/callback/:provider pattern per existing convention`
+- `constraint(stripe-integration): currency required at PaymentIntent creation, cannot change after`
+- `constraint(session-store): redis 24h TTL means tokens must refresh within that window`
+
+**When to use:** When non-obvious limitations influenced the implementation. Things the next person working here would need to know.
+
+### `learned(scope): ...`
+Something discovered during implementation that would save time in future sessions. API quirks, undocumented behavior, performance characteristics.
+
+- `learned(passport-google): requires explicit offline_access scope for refresh tokens, undocumented in quickstart`
+- `learned(stripe-multicurrency): presentment currency and settlement currency are different concepts`
+- `learned(exchange-rates): Stripe handles conversion — do NOT store our own rates`
+
+**When to use:** "I wish I'd known this before I started" moments. Library gotchas, API surprises, non-obvious behaviors.
+
+### `context(scope): ...`
+References to related decisions, prior work, or relevant background. Links rather than duplicates.
+
+- `context(payments): see ADR-007 for original single-currency decision`
+- `context(auth-migration): relates to the March 2025 security audit findings`
+- `context(api-versioning): mobile API v3 contract does not include rate limit headers yet`
+
+**When to use:** When the change connects to broader system knowledge that isn't in git history. Keep it brief — a pointer, not an explanation.
+
+## Examples
+
+### Simple fix — no action lines needed
+
+```
+fix(button): correct alignment on mobile viewport
+```
+
+The conventional commit subject is sufficient. Don't add noise.
+
+### Moderate feature
+
+```
+feat(notifications): add email digest for weekly summaries
+
+intent(notifications): users want batch notifications instead of per-event emails
+decision(digest-schedule): weekly on Monday 9am — matches user research feedback
+constraint(email-provider): SendGrid batch API limited to 1000 recipients per call
+```
+
+### Complex architectural change
+
+```
+refactor(payments): migrate from single to multi-currency support
+
+intent(payments): enterprise customers need EUR and GBP alongside USD
+intent(payment-architecture): must be backward compatible, existing USD flows unchanged
+decision(currency-handling): per-transaction currency over account-level default
+rejected(currency-handling): account-level default too limiting for marketplace sellers
+rejected(money-library): accounting.js — lacks sub-unit arithmetic, using currency.js instead
+constraint(stripe-integration): Stripe requires currency at PaymentIntent creation, cannot change after
+constraint(database-migration): existing amount columns need companion currency columns, not replacement
+learned(stripe-multicurrency): presentment currency vs settlement currency are different Stripe concepts
+learned(exchange-rates): Stripe handles conversion, we should NOT store our own rates
+context(payments): see ADR-007 for original single-currency decision and constraints
+```
+
+### Mid-implementation pivot
+
+When intent changes during work, capture it on the commit where the pivot happens:
+
+```
+refactor(auth): switch from session-based to JWT tokens
+
+intent(auth): original session approach incompatible with redis cluster setup
+rejected(auth-sessions): redis cluster doesn't support session stickiness needed by passport sessions
+decision(auth-tokens): JWT with short expiry + refresh token pattern
+learned(redis-cluster): session affinity requires sticky sessions at load balancer level — too invasive
+```
+
+## Rules
+
+1. **The subject line is a Conventional Commit.** Never break existing conventions or tooling.
+2. **Action lines go in the body only.** Never in the subject line.
+3. **Only write action lines that carry signal.** If the diff already explains it, don't repeat it. If there was nothing to decide, reject, or discover, write no action lines.
+4. **Use consistent scopes within a project.** If you called it `auth` in one commit, don't call it `authentication` in the next.
+5. **Capture the user's intent in their words.** For `intent` lines, reflect what the human asked for, not your implementation summary.
+6. **Always explain why for `rejected` lines.** A rejection without a reason is useless — the next agent will just re-propose it.
+7. **Don't invent action lines for trivial commits.** A typo fix, a dependency bump, a formatting change — the conventional commit subject is enough.
