@@ -1,4 +1,4 @@
---
+---
 name: recall
 description: >-
   Reconstruct and narrate the current development context from contextual
@@ -78,76 +78,102 @@ From the gathered commit bodies, extract lines matching:
 
 Group them by commit (preserve chronological order) and by type (for synthesis).
 
-## Step 4: Narrate
+## Step 4: Synthesize Output
 
-This is the critical step. **Do not list or dump the extracted data.** Synthesize it into a conversational briefing that tells the story of where things stand.
+**Signal density over narrative flow.** The output should be compact, scannable, and grounded entirely in what the commits and diffs show. Every line should be actionable information. No fluff, no conversational padding.
 
 ### For Scenario A (branch with commits):
 
-Tell the story of this branch: what the user set out to do (from `intent` lines), what approach they took (from `decision` lines), what didn't work (from `rejected` lines), what limits they hit (from `constraint` lines), and what they learned along the way (from `learned` lines).
+Output the branch state, then synthesize the contextual action lines into a dense briefing organized by what matters most for continuing work.
 
-If there are unstaged changes, describe what's currently in progress.
-
-End with a natural prompt: "How do you want to proceed?" or "What should we tackle next?"
-
-Example tone:
+Example output:
 ```
-Here's where we stand on this branch:
+Branch: feat/google-oauth (4 commits ahead of main, unstaged changes in tests/)
 
-We're extending the auth system to support Google OAuth as the first
-social login provider, with GitHub and Apple planned next. We went with
-passport.js after ruling out auth0-sdk — it locks you into their session
-model which doesn't work with the existing redis store.
-
-The callback routes are working and follow the existing /api/auth/callback/:provider
-pattern. One thing to note: passport-google requires an explicit offline_access
-scope for refresh tokens, which isn't obvious from their docs.
-
-Currently there are unstaged changes in the test files — looks like the
-integration tests for the callback handler are in progress.
-
-What do you want to tackle next?
+Active intent: Add Google as first social login provider. GitHub and Apple to follow.
+Approach: passport.js with /api/auth/callback/:provider convention.
+Rejected: auth0-sdk — session model incompatible with redis store.
+Constraints:
+  - Redis session TTL 24h, tokens must refresh within window
+  - Callback routes must follow existing :provider pattern
+Learned: passport-google needs explicit offline_access scope for refresh tokens.
+In progress: Integration tests for callback handler (unstaged).
 ```
+
+Priority order:
+1. Active intent (what we're building and why)
+2. Current approach (decisions made)
+3. Rejected approaches (what NOT to re-explore — critical)
+4. Constraints (hard boundaries)
+5. Learnings (things that save time)
+6. In-progress work (unstaged/staged changes)
+
+If intent evolved during the branch (a pivot), show both the original and current intent to make the pivot visible.
 
 ### For Scenario B (branch with no commits):
 
-Briefly describe what's changed (staged/unstaged) and provide recent project context from the default branch history. Acknowledge that there's no branch-specific context yet.
+```
+Branch: feat/new-feature (0 commits ahead of main)
+
+No contextual history on this branch yet.
+Staged: 2 files (src/auth/provider.ts, src/auth/types.ts)
+Unstaged: none
+
+Recent project activity (from main):
+  - Auth: OAuth provider framework merged, Google working
+  - Payments: Multi-currency support shipped (EUR, GBP alongside USD)
+```
 
 ### For Scenario C (default branch, no changes):
 
-Synthesize recent activity from the last merged commits. Tell the story of what happened recently — what was shipped, what decisions were made, what's in motion.
+Synthesize recent merged work from the last 20 commits. Group by area of activity. Surface any active constraints or learnings that apply broadly.
 
-Example tone:
 ```
-Here's what's been happening recently:
+Recent project activity:
 
-The multi-currency support for payments landed last week — we're now
-handling EUR and GBP alongside USD, using per-transaction currency
-with currency.js. The Stripe integration required some careful handling
-since currency gets locked at PaymentIntent creation.
+Auth: OAuth provider framework merged. Google working, GitHub and Apple planned.
+  - Rejected auth0-sdk (session model incompatible with redis store)
+  - Constraint: redis session TTL 24h, tokens must refresh within window
 
-Before that, the auth system got the OAuth provider framework merged.
-Google is working, GitHub and Apple are next.
-
-There's an open constraint worth knowing: the redis session store has a
-24h TTL, so any token refresh logic needs to stay within that window.
+Payments: Multi-currency support shipped (USD, EUR, GBP).
+  - Per-transaction currency, not account-level
+  - Constraint: Stripe locks currency at PaymentIntent creation
+  - Learned: presentment ≠ settlement currency in Stripe
 
 What do you want to work on?
 ```
 
 ### For Scenario D (default branch with uncommitted changes):
 
-Combine the project briefing from Scenario C with a note about the uncommitted changes.
+Same as Scenario C, with uncommitted changes noted at the top.
 
-### When there are no contextual commits
+### When there are no contextual commits at all
 
-If the history has no action lines at all, say so honestly. Fall back to summarizing the conventional commit subjects for recent activity. Suggest that using the `contextual-commit` skill on future commits will make `/recall` much more useful.
+If the history contains conventional commits but no contextual action lines, **still produce useful output** from what exists:
+
+```
+Branch: main (no contextual commits found in recent history)
+
+Recent activity (from commit subjects):
+  - auth: 6 commits (OAuth implementation, middleware updates) — 2 days ago
+  - payments: 4 commits (currency handling, Stripe integration) — last week
+  - tests: 3 commits — last week
+  - config: 2 commits
+
+Most recent: feat(auth): implement Google OAuth provider
+
+No explicit intent, decisions, or constraints are captured in commit history.
+Using the contextual-commit skill on future commits will surface
+the reasoning behind changes that commit subjects alone cannot show.
+```
+
+This is honest about the signal quality while still providing useful orientation. The suggestion to adopt the skill is a natural next step, not a sales pitch.
 
 ## Guidelines
 
-- **Narrate, don't list.** Never output bullet lists of raw action lines. Tell the story.
-- **Prioritize the current branch.** On a feature branch, the branch context is what matters. Project-wide context is secondary.
-- **Surface rejections prominently.** If something was tried and rejected, that's critical — the user (or the next agent) needs to know before re-exploring it.
-- **Be brief.** A few paragraphs, not a report. This is a briefing, not documentation.
-- **End with a prompt.** Always close with a natural question about what to do next. This is a session start, not a session end.
-- **Don't fabricate.** Only narrate what the action lines and diffs actually show. If there's limited history, keep it short. An honest "there's not much context yet" is better than padding
+- **Dense over conversational.** Every line should carry information. No "Here's what's been happening" or "Let me tell you about."
+- **Grounded in data.** Only report what the action lines, commit subjects, and diffs actually show. Do not infer, speculate, or fill gaps.
+- **Surface rejections prominently.** Rejected approaches are the highest-value signal — they prevent wasted exploration.
+- **Group by scope when multiple scopes exist.** On the default branch with broad history, organize by domain area rather than chronologically.
+- **End with a prompt.** Close with "What do you want to work on?" or similar. Keep it short.
+- **Scale to the data.** If there are 2 contextual commits, the output is 3-4 lines. If there are 20, it's a few grouped paragraphs. Never pad thin data into a long output.
