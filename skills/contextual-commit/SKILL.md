@@ -149,12 +149,40 @@ decision(auth-tokens): JWT with short expiry + refresh token pattern
 learned(redis-cluster): session affinity requires sticky sessions at load balancer level — too invasive
 ```
 
+## When You Lack Conversation Context
+
+Sometimes you're committing changes you didn't produce — pasted code, externally generated files, manual edits made outside the session. In this case you lack the reasoning trail.
+
+**Only write action lines for what is clearly evidenced in the diff.** Do not speculate about intent or constraints you cannot observe.
+
+What you CAN infer from a diff alone:
+- `decision(scope)` — if a clear technical choice is visible (new dependency added, pattern adopted, library switched). Example: `decision(http-client): switched from axios to native fetch` is visible from the diff.
+- `context(scope)` — if the change clearly relates to something already documented.
+
+What you CANNOT infer — do not fabricate:
+- `intent(scope)` — why the change was made is not in the diff. Don't restate what the diff shows.
+- `rejected(scope)` — what was NOT chosen is invisible in what WAS committed.
+- `constraint(scope)` — hard limits are almost never visible in code changes.
+- `learned(scope)` — learnings come from the process, not the output.
+
+**A clean conventional commit subject with no action lines is always better than fabricated context.**
+
+## Git Workflows
+
+Contextual commits work with every standard git workflow. No special handling needed.
+
+- **Regular merges:** Commit bodies preserved intact.
+- **Squash merges:** All commit bodies concatenated into the squash commit body. The result is a chronological trail of typed, scoped action lines — agents parse, filter, and group these without issue.
+- **Rebase and cherry-pick:** Commit bodies preserved.
+
 ## Rules
 
 1. **The subject line is a Conventional Commit.** Never break existing conventions or tooling.
 2. **Action lines go in the body only.** Never in the subject line.
 3. **Only write action lines that carry signal.** If the diff already explains it, don't repeat it. If there was nothing to decide, reject, or discover, write no action lines.
-4. **Use consistent scopes within a project.** If you called it `auth` in one commit, don't call it `authentication` in the next.
-5. **Capture the user's intent in their words.** For `intent` lines, reflect what the human asked for, not your implementation summary.
-6. **Always explain why for `rejected` lines.** A rejection without a reason is useless — the next agent will just re-propose it.
-7. **Don't invent action lines for trivial commits.** A typo fix, a dependency bump, a formatting change — the conventional commit subject is enough.
+4. **Be concise but complete.** Each action line should be a single clear statement. No artificial length limits, but don't write essays either.
+5. **Use consistent scopes within a project.** If you called it `auth` in one commit, don't call it `authentication` in the next.
+6. **Capture the user's intent in their words.** For `intent` lines, reflect what the human asked for, not your implementation summary.
+7. **Always explain why for `rejected` lines.** A rejection without a reason is useless — the next agent will just re-propose it.
+8. **Don't invent action lines for trivial commits.** A typo fix, a dependency bump, a formatting change — the conventional commit subject is enough.
+9. **Don't fabricate context you don't have.** If you weren't part of the reasoning, don't pretend you were. See "When You Lack Conversation Context" above.
