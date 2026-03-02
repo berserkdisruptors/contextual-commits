@@ -1,103 +1,153 @@
----
+--
 name: recall
 description: >-
-  Show the current development context reconstructed from contextual commits.
-  Displays branch state, accumulated intent, decisions, constraints, and
-  learnings from the git history of the current branch. Use at session start,
-  when resuming work, or when you need to understand the reasoning behind
-  the current state of the code.
+  Reconstruct and narrate the current development context from contextual
+  commits. Run at session start, when resuming work, or when switching
+  branches. Produces a brief, conversational summary of where things stand.
 ---
 
 # Context Recall
 
-Reconstruct and present the development context from the current branch's contextual commit history.
+Reconstruct the development story from contextual commit history and present it as a natural briefing.
 
 ## Step 1: Detect Branch State
 
-Run the following to determine the current working state:
+Determine the working state:
 
 ```bash
 CURRENT_BRANCH=$(git branch --show-current)
-DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || (git rev-parse --verify refs/heads/main >/dev/null 2>&1 && echo main || git rev-parse --verify refs/heads/master >/dev/null 2>&1 && echo master || echo main))
+DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
 UNSTAGED=$(git diff --stat)
 STAGED=$(git diff --cached --stat)
 BRANCH_COMMITS=$(git log ${DEFAULT_BRANCH}..HEAD --oneline 2>/dev/null | wc -l | tr -d ' ')
 ```
 
-Determine which scenario applies:
+This determines which of four scenarios you are in.
 
-- **On default branch, no changes**: No active work context. Report that and suggest starting a new branch.
-- **On default branch, with changes**: Uncommitted work without a branch. Note this and show what's changed.
-- **On branch, no commits ahead**: Branch exists but no work done yet. Check for uncommitted changes.
-- **On branch, with commits**: Active work. This is where contextual recall is most valuable.
+## Step 2: Gather Raw Material
 
-## Step 2: Extract Contextual Commits
+### Scenario A — On a feature branch with commits
 
-If there are branch commits ahead of the default branch, extract all contextual action lines:
+This is the richest scenario. Gather:
 
 ```bash
+# Contextual action lines from all branch commits
 git log ${DEFAULT_BRANCH}..HEAD --format="%H%n%s%n%b%n---COMMIT_END---"
+
+# Unstaged changes (what's in progress right now)
+git diff --stat
+git diff  # read the actual diff for key changes
+
+# Staged changes
+git diff --cached --stat
 ```
 
-Parse each commit and collect:
-- The conventional commit subject (the WHAT)
-- All action lines from the body matching the pattern: `^(intent|decision|rejected|constraint|learned|context)\(`
-
-Group the collected action lines by type across all commits.
-
-## Step 3: Present the Report
-
-Format the output as a clear status report. Adapt based on what was found.
-
-### Report Structure
-
-**Branch status**: `{branch_name}` — `{N}` commits ahead of `{default_branch}`
-
-**Uncommitted changes** (if any): summarize staged and unstaged changes.
-
-**What's being built** (from `intent` lines):
-List all intent lines chronologically. If intent changed mid-branch (a pivot), note the progression.
-
-**Decisions made** (from `decision` lines):
-List all decisions. Group by scope if there are many.
-
-**Approaches rejected** (from `rejected` lines):
-List all rejections with their reasons. This is critical context — it prevents re-exploring dead ends.
-
-**Constraints discovered** (from `constraint` lines):
-List all constraints. These are hard boundaries that must be respected.
-
-**Things learned** (from `learned` lines):
-List all learnings. These save time in the current session.
-
-**Related context** (from `context` lines):
-List any references to related decisions, prior work, or external context.
-
-**Commit progression**: Brief chronological summary of the conventional commit subjects showing how the work progressed.
-
-### When There Are No Contextual Commits
-
-If the branch has commits but none contain action lines, report:
-- The branch status and commit subjects
-- Note that no contextual information was found in commit bodies
-- Suggest using the `contextual-commit` skill for future commits to build up project context
-
-### When On the Default Branch
-
-If the user runs recall while on the default branch, search the recent history of that branch:
+### Scenario B — On a feature branch with no commits yet
 
 ```bash
-git log -50 --format="%H%n%s%n%b%n---COMMIT_END---"
+# Unstaged and staged changes only
+git diff --stat
+git diff --cached --stat
+
+# Last few commits on the default branch for project context
+git log ${DEFAULT_BRANCH} -10 --format="%H%n%s%n%b%n---COMMIT_END---"
 ```
 
-Parse the last 50 commits on the current branch for any contextual action lines. Present a summary of recent project-wide decisions, constraints, and learnings. This gives the user a general project briefing rather than a branch-specific one.
+### Scenario C — On the default branch
 
-## Tone
+```bash
+# Recent commit history with contextual action lines
+git log -20 --format="%H%n%s%n%b%n---COMMIT_END---"
+```
 
-Present the report as a concise briefing — not a data dump. Prioritize:
-1. Active intent (what's being worked on and why)
-2. Rejected approaches (what NOT to re-explore)
-3. Constraints (what limits apply)
-4. Recent decisions (what's been decided)
+### Scenario D — On the default branch with uncommitted changes
 
-Skip sections that have no entries. Don't show empty headers.
+```bash
+# Same as C plus uncommitted changes
+git log -20 --format="%H%n%s%n%b%n---COMMIT_END---"
+git diff --stat
+git diff --cached --stat
+```
+
+## Step 3: Extract Action Lines
+
+From the gathered commit bodies, extract lines matching:
+```
+^(intent|decision|rejected|constraint|learned|context)\(
+```
+
+Group them by commit (preserve chronological order) and by type (for synthesis).
+
+## Step 4: Narrate
+
+This is the critical step. **Do not list or dump the extracted data.** Synthesize it into a conversational briefing that tells the story of where things stand.
+
+### For Scenario A (branch with commits):
+
+Tell the story of this branch: what the user set out to do (from `intent` lines), what approach they took (from `decision` lines), what didn't work (from `rejected` lines), what limits they hit (from `constraint` lines), and what they learned along the way (from `learned` lines).
+
+If there are unstaged changes, describe what's currently in progress.
+
+End with a natural prompt: "How do you want to proceed?" or "What should we tackle next?"
+
+Example tone:
+```
+Here's where we stand on this branch:
+
+We're extending the auth system to support Google OAuth as the first
+social login provider, with GitHub and Apple planned next. We went with
+passport.js after ruling out auth0-sdk — it locks you into their session
+model which doesn't work with the existing redis store.
+
+The callback routes are working and follow the existing /api/auth/callback/:provider
+pattern. One thing to note: passport-google requires an explicit offline_access
+scope for refresh tokens, which isn't obvious from their docs.
+
+Currently there are unstaged changes in the test files — looks like the
+integration tests for the callback handler are in progress.
+
+What do you want to tackle next?
+```
+
+### For Scenario B (branch with no commits):
+
+Briefly describe what's changed (staged/unstaged) and provide recent project context from the default branch history. Acknowledge that there's no branch-specific context yet.
+
+### For Scenario C (default branch, no changes):
+
+Synthesize recent activity from the last merged commits. Tell the story of what happened recently — what was shipped, what decisions were made, what's in motion.
+
+Example tone:
+```
+Here's what's been happening recently:
+
+The multi-currency support for payments landed last week — we're now
+handling EUR and GBP alongside USD, using per-transaction currency
+with currency.js. The Stripe integration required some careful handling
+since currency gets locked at PaymentIntent creation.
+
+Before that, the auth system got the OAuth provider framework merged.
+Google is working, GitHub and Apple are next.
+
+There's an open constraint worth knowing: the redis session store has a
+24h TTL, so any token refresh logic needs to stay within that window.
+
+What do you want to work on?
+```
+
+### For Scenario D (default branch with uncommitted changes):
+
+Combine the project briefing from Scenario C with a note about the uncommitted changes.
+
+### When there are no contextual commits
+
+If the history has no action lines at all, say so honestly. Fall back to summarizing the conventional commit subjects for recent activity. Suggest that using the `contextual-commit` skill on future commits will make `/recall` much more useful.
+
+## Guidelines
+
+- **Narrate, don't list.** Never output bullet lists of raw action lines. Tell the story.
+- **Prioritize the current branch.** On a feature branch, the branch context is what matters. Project-wide context is secondary.
+- **Surface rejections prominently.** If something was tried and rejected, that's critical — the user (or the next agent) needs to know before re-exploring it.
+- **Be brief.** A few paragraphs, not a report. This is a briefing, not documentation.
+- **End with a prompt.** Always close with a natural question about what to do next. This is a session start, not a session end.
+- **Don't fabricate.** Only narrate what the action lines and diffs actually show. If there's limited history, keep it short. An honest "there's not much context yet" is better than padding
