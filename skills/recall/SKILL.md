@@ -4,13 +4,26 @@ description: >-
   Reconstruct and narrate the current development context from contextual
   commits. Run at session start, when resuming work, or when switching
   branches. Produces a brief, conversational summary of where things stand.
+license: MIT
 ---
 
 # Context Recall
 
 Reconstruct the development story from contextual commit history and present it as a natural briefing.
 
-## Step 1: Detect Branch State
+## Argument Detection
+
+Check how `recall` was invoked:
+
+- **No arguments** — run the default mode (full branch/session briefing below).
+- **Bare word** (e.g. `recall auth`) — treat as a scope query. Jump to **Scope Query**.
+- **`word(word)` pattern** (e.g. `recall rejected(auth)`) — treat as an action+scope query. Jump to **Action+Scope Query**.
+
+---
+
+## Default Mode (no arguments)
+
+### Step 1: Detect Branch State
 
 Determine the working state:
 
@@ -24,9 +37,9 @@ BRANCH_COMMITS=$(git log ${DEFAULT_BRANCH}..HEAD --oneline 2>/dev/null | wc -l |
 
 This determines which of four scenarios you are in.
 
-## Step 2: Gather Raw Material
+### Step 2: Gather Raw Material
 
-### Scenario A — On a feature branch with commits
+#### Scenario A — On a feature branch with commits
 
 This is the richest scenario. Gather:
 
@@ -42,7 +55,7 @@ git diff  # read the actual diff for key changes
 git diff --cached --stat
 ```
 
-### Scenario B — On a feature branch with no commits yet
+#### Scenario B — On a feature branch with no commits yet
 
 ```bash
 # Unstaged and staged changes only
@@ -53,14 +66,14 @@ git diff --cached --stat
 git log ${DEFAULT_BRANCH} -10 --format="%H%n%s%n%b%n---COMMIT_END---"
 ```
 
-### Scenario C — On the default branch
+#### Scenario C — On the default branch
 
 ```bash
 # Recent commit history with contextual action lines
 git log -20 --format="%H%n%s%n%b%n---COMMIT_END---"
 ```
 
-### Scenario D — On the default branch with uncommitted changes
+#### Scenario D — On the default branch with uncommitted changes
 
 ```bash
 # Same as C plus uncommitted changes
@@ -69,7 +82,7 @@ git diff --stat
 git diff --cached --stat
 ```
 
-## Step 3: Extract Action Lines
+### Step 3: Extract Action Lines
 
 From the gathered commit bodies, extract lines matching:
 ```
@@ -78,11 +91,11 @@ From the gathered commit bodies, extract lines matching:
 
 Group them by commit (preserve chronological order) and by type (for synthesis).
 
-## Step 4: Synthesize Output
+### Step 4: Synthesize Output
 
 **Signal density over narrative flow.** The output should be compact, scannable, and grounded entirely in what the commits and diffs show. Every line should be actionable information. No fluff, no conversational padding.
 
-### For Scenario A (branch with commits):
+#### For Scenario A (branch with commits):
 
 Output the branch state, then synthesize the contextual action lines into a dense briefing organized by what matters most for continuing work.
 
@@ -110,7 +123,7 @@ Priority order:
 
 If intent evolved during the branch (a pivot), show both the original and current intent to make the pivot visible.
 
-### For Scenario B (branch with no commits):
+#### For Scenario B (branch with no commits):
 
 ```
 Branch: feat/new-feature (0 commits ahead of main)
@@ -124,7 +137,7 @@ Recent project activity (from main):
   - Payments: Multi-currency support shipped (EUR, GBP alongside USD)
 ```
 
-### For Scenario C (default branch, no changes):
+#### For Scenario C (default branch, no changes):
 
 Synthesize recent merged work from the last 20 commits. Group by area of activity. Surface any active constraints or learnings that apply broadly.
 
@@ -143,11 +156,11 @@ Payments: Multi-currency support shipped (USD, EUR, GBP).
 What do you want to work on?
 ```
 
-### For Scenario D (default branch with uncommitted changes):
+#### For Scenario D (default branch with uncommitted changes):
 
 Same as Scenario C, with uncommitted changes noted at the top.
 
-### When there are no contextual commits at all
+#### When there are no contextual commits at all
 
 If the history contains conventional commits but no contextual action lines, **still produce useful output** from what exists:
 
@@ -169,7 +182,7 @@ the reasoning behind changes that commit subjects alone cannot show.
 
 This is honest about the signal quality while still providing useful orientation. The suggestion to adopt the skill is a natural next step, not a sales pitch.
 
-## Guidelines
+### Guidelines
 
 - **Dense over conversational.** Every line should carry information. No "Here's what's been happening" or "Let me tell you about."
 - **Grounded in data.** Only report what the action lines, commit subjects, and diffs actually show. Do not infer, speculate, or fill gaps.
@@ -177,3 +190,107 @@ This is honest about the signal quality while still providing useful orientation
 - **Group by scope when multiple scopes exist.** On the default branch with broad history, organize by domain area rather than chronologically.
 - **End with a prompt.** Close with "What do you want to work on?" or similar. Keep it short.
 - **Scale to the data.** If there are 2 contextual commits, the output is 3-4 lines. If there are 20, it's a few grouped paragraphs. Never pad thin data into a long output.
+
+---
+
+## Scope Query (`recall <scope>`)
+
+Targeted query across full repo history for a given scope. Prefix matching: `auth` matches `auth`, `auth-tokens`, `auth-library`, etc.
+
+### Step 1: Query
+
+```bash
+git log --all --grep="(${SCOPE}" --format="%H%n%s%n%b%n---COMMIT_END---"
+```
+
+### Step 2: Extract
+
+From the gathered commit bodies, extract lines matching:
+```bash
+grep -E "^(intent|decision|rejected|constraint|learned)\(${SCOPE}"
+```
+
+This captures all action lines whose scope starts with the query term.
+
+### Step 3: Output
+
+Group by action type, chronological within each group. Show which sub-scopes were found.
+
+Example (`recall auth`):
+```
+Scope: auth (also found: auth-tokens, auth-library)
+
+intent:
+  - social login starting with Google, then GitHub and Apple
+  - original session approach incompatible with redis cluster setup
+
+decision:
+  - passport.js over auth0-sdk for multi-provider flexibility
+  - JWT with short expiry + refresh token pattern
+
+rejected:
+  - auth0-sdk — locks into their session model, incompatible with redis store
+  - auth-sessions — redis cluster doesn't support session stickiness needed by passport sessions
+
+constraint:
+  - callback routes must follow /api/auth/callback/:provider pattern per existing convention
+  - redis 24h TTL means tokens must refresh within that window
+
+learned:
+  - passport-google needs explicit offline_access scope for refresh tokens
+  - redis-cluster session affinity requires sticky sessions at load balancer level — too invasive
+```
+
+If no matches are found, say so plainly and suggest checking the scope name.
+
+---
+
+## Action+Scope Query (`recall <action>(<scope>)`)
+
+Query a specific action type for a scope across full repo history.
+
+### Step 1: Query
+
+```bash
+git log --all --grep="${ACTION}(${SCOPE}" --format="%H%n%s%n%b%n---COMMIT_END---"
+```
+
+### Step 2: Extract
+
+```bash
+grep "^${ACTION}(${SCOPE}"
+```
+
+### Step 3: Output
+
+Flat chronological list with commit subject for provenance.
+
+Example (`recall rejected(auth)`):
+```
+rejected(auth) across history:
+
+  - auth0-sdk — locks into their session model, incompatible with redis store
+    from: feat(auth): implement Google OAuth provider
+
+  - auth-sessions — redis cluster doesn't support session stickiness needed by passport sessions
+    from: refactor(auth): switch from session-based to JWT tokens
+```
+
+If no matches are found, say so plainly.
+
+---
+
+## Proactive Usage
+
+Before making a significant decision in any scope area, check `rejected` and `constraint` lines for that scope first:
+
+```bash
+git log --all --grep="rejected(${SCOPE}" --format="%b" | grep "^rejected(${SCOPE}"
+git log --all --grep="constraint(${SCOPE}" --format="%b" | grep "^constraint(${SCOPE}"
+```
+
+If a previous commit recorded a `rejected` line for the approach you're about to propose, surface the rejection reason to the user **before** re-proposing it. The rejection may still stand, or circumstances may have changed — but the user should make that call with full context, not rediscover the same dead end.
+
+Similarly, check `constraint` lines before proposing an approach that might violate a known boundary.
+
+This check is lightweight and should become habitual for any scope you're actively working in.

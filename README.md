@@ -75,23 +75,17 @@ This repo includes two agent-agnostic files following the [Agent Skills](https:/
 
 ### Quick Start
 
-Copy the two files into your project:
+Copy the two skill files into your project:
 
 ```
 your-project/
 ├── .claude/skills/contextual-commit/SKILL.md    # Claude Code
+├── .claude/skills/recall/SKILL.md               # Claude Code
 ├── .github/skills/contextual-commit/SKILL.md    # GitHub Copilot
+├── .github/skills/recall/SKILL.md               # GitHub Copilot
 ├── .cursor/skills/contextual-commit/SKILL.md    # Cursor
+├── .cursor/skills/recall/SKILL.md               # Cursor
 └── ... (wherever your agent loads skills from)
-```
-
-Same for the slash command:
-
-```
-your-project/
-├── .claude/commands/recall.md
-├── .github/commands/recall.md
-└── ...
 ```
 
 That's it. Your agent now knows how to write contextual commits and how to reconstruct context from git history.
@@ -101,13 +95,17 @@ That's it. Your agent now knows how to write contextual commits and how to recon
 | File | What It Does |
 |------|--------------|
 | [`skills/contextual-commit/SKILL.md`](skills/contextual-commit/SKILL.md) | Teaches the agent the contextual commit format. Auto-invoked when committing. Produces structured action lines based on what happened in the session. |
-| [`commands/recall.md`](commands/recall.md) | `/recall` — reconstructs development context from the current branch's contextual commit history. Shows accumulated intent, decisions, rejections, constraints, and learnings. |
+| [`skills/recall/SKILL.md`](skills/recall/SKILL.md) | `/recall` — reconstructs development context from contextual commit history. Supports three modes: full session briefing, scope queries, and action+scope queries. |
 
 ### Usage
 
 **Writing contextual commits** — just commit normally. The skill activates automatically when the agent writes a commit and produces action lines based on the session's conversation.
 
-**Recalling context** — type `/recall` at the start of a session or when resuming work. The agent reconstructs what's been decided, rejected, discovered, and learned from the branch's commit history.
+**Recalling context** — `/recall` supports three modes:
+
+- `/recall` — full session briefing. Shows accumulated intent, decisions, rejections, constraints, and learnings for the current branch.
+- `/recall auth` — scope query. Searches the entire repo history for all action lines matching a scope (prefix-matched, so `auth` also finds `auth-tokens`, `auth-library`).
+- `/recall rejected(auth)` — action+scope query. Searches for a specific action type within a scope. Useful for checking what's been tried and discarded before proposing an approach.
 
 ## Examples
 
@@ -202,17 +200,17 @@ No. Use only what applies. Most commits need 0-3 action lines. Trivial changes n
 You can still write contextual commits manually. The convention is the value — the skill just automates it. Add the instructions to your CLAUDE.md, .cursorrules, or equivalent project configuration.
 
 **How do I search contextual commits?**
+
+Use `/recall` with a scope or action+scope query:
+```
+/recall auth                  — all action lines for the auth scope
+/recall rejected(auth)        — just rejected approaches for auth
+/recall constraint(session)   — just constraints for session
+```
+
+Or query git directly:
 ```bash
-# Find all rejected approaches related to auth
 git log --all --grep="rejected(auth"
-
-# Find all constraints
-git log --all --grep="^constraint("
-
-# Find all decisions on a specific branch
-git log main..HEAD --grep="^decision("
-
-# Extract all action lines from a branch
 git log main..HEAD --format="%b" | grep -E "^(intent|decision|rejected|constraint|learned)\("
 ```
 

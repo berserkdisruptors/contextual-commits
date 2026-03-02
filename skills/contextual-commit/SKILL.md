@@ -91,6 +91,19 @@ Something discovered during implementation that would save time in future sessio
 **When to use:** "I wish I'd known this before I started" moments. Library gotchas, API surprises, non-obvious behaviors.
 
 
+## Before You Write the Commit
+
+Review the full staging area before composing any action lines:
+
+1. **List all staged changes** — `git diff --cached --stat` (and `git diff --cached` for the actual content). Include untracked files you are about to `git add`.
+2. **Identify what you have session context for** — changes you produced, discussed, or observed reasoning for during this conversation.
+3. **Identify what you don't** — files or changes from a prior session, another agent, or manual edits outside this conversation.
+4. **Write action lines accordingly:**
+   - For changes you have context for: full action lines from session knowledge.
+   - For changes you don't: apply the "When You Lack Conversation Context" rules below — write only what the diff evidences.
+
+The commit message must account for ALL staged changes, not just the ones you worked on. Ignoring changes you didn't produce is worse than writing thin action lines for them.
+
 ## Examples
 
 ### Simple fix — no action lines needed
@@ -142,7 +155,7 @@ learned(redis-cluster): session affinity requires sticky sessions at load balanc
 
 ## When You Lack Conversation Context
 
-Sometimes you're committing changes you didn't produce — pasted code, externally generated files, manual edits made outside the session. In this case you lack the reasoning trail.
+Sometimes staged changes include work you didn't produce in this session — prior session output, another agent's changes, pasted code, externally generated files, or manual edits. For any change where you lack the reasoning trail:
 
 **Only write action lines for what is clearly evidenced in the diff.** Do not speculate about intent or constraints you cannot observe.
 
