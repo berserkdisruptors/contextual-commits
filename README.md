@@ -49,6 +49,8 @@ The subject line tells you **what**. The body tells you **why**.
 
 **scope** is a human-readable label — the domain area, module, or concept. Use whatever vocabulary is natural in your project: `auth`, `payment-flow`, `api-contracts`, `session-store`.
 
+Contextual commits capture **intent** (what you're building and why) and **historical** context (decisions, rejections, constraints, learnings) — the two context types that accumulate over time and cannot be extracted from code analysis alone. Other context types — structural (architecture, dependencies), conventional (patterns, code style), verification (test strategy, quality criteria) — live in the codebase itself and require different capture mechanisms.
+
 ### Design Principles
 
 - **Extends, never breaks.** The subject line is a standard Conventional Commit. All existing tooling (commitlint, semantic-release, changelog generators) works unchanged.
@@ -172,6 +174,15 @@ The conventional commit subject is sufficient. Don't add noise.
 **Does this break Conventional Commits?**
 No. The subject line IS a conventional commit. Action lines live in the body, which Conventional Commits does not govern. Existing tooling (commitlint, semantic-release, changelog generators) validates the subject line only and is completely unaffected.
 
+**What about repos that already use conventional commits but not contextual commits?**
+`/recall` still works — it falls back to summarizing recent activity from commit subjects and file change patterns. The output is thinner (WHAT happened, not WHY) but still provides useful orientation. Adopting contextual commits is incremental: new commits carry action lines, old commits remain as they are. The context accumulates forward.
+
+**What if the agent wasn't part of the reasoning (copy-paste, external changes)?**
+The skill handles this explicitly. The agent only writes action lines for what it can observe in the diff — typically a `decision` line if a clear technical choice is visible (new dependency, pattern change). It does not fabricate `intent`, `rejected`, or `constraint` lines it has no evidence for. A clean conventional commit with no action lines is always better than invented context.
+
+**What happens with squash merges?**
+When squash-merging, git concatenates all commit bodies. The result is a chronological trail of typed, scoped action lines — agents parse and group these without issue. No cleanup needed. Regular merges, rebases, and cherry-picks preserve commit bodies intact.
+
 **Do I need to use every action type on every commit?**
 No. Use only what applies. Most commits need 0-3 action lines. Trivial changes need none.
 
@@ -202,7 +213,7 @@ This is a **convention**, not a tool. It works today, manually, with zero instal
 
 The reference implementation (skill + command) makes it easier to practice the convention with AI agents. But the value is in the commit history itself — readable by any human, parseable by any tool, owned by git.
 
-For codegraph-powered scoping, automated context maintenance, multi-agent orchestration, and intelligent context recall across repositories, see [Engraph](https://github.com/berserkdisruptors/engraph) — where contextual commits become nodes in a queryable knowledge graph.
+For consistent scoping, broader context coverage, automated context maintenance, agent-native tooling, and richer context recall, see [Engraph](https://github.com/berserkdisruptors/engraph) — the context layer for agentic coding, where contextual commits are only the beginning.
 
 ## License
 
