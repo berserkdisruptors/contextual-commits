@@ -93,16 +93,18 @@ Something discovered during implementation that would save time in future sessio
 
 ## Before You Write the Commit
 
-Review the full staging area before composing any action lines:
+Determine the commit scope, then compose action lines:
 
-1. **List all staged changes** — `git diff --cached --stat` (and `git diff --cached` for the actual content). Include untracked files you are about to `git add`.
+1. **Check for staged changes first** — run `git diff --cached --stat`.
+   - **If staged changes exist:** these are the commit scope. Do not consider unstaged or untracked files — the user has already expressed what belongs in this commit by staging it.
+   - **If nothing is staged:** consider all unstaged modifications and untracked files as candidates. Use session context and the diff to decide what to stage and commit.
 2. **Identify what you have session context for** — changes you produced, discussed, or observed reasoning for during this conversation.
 3. **Identify what you don't** — files or changes from a prior session, another agent, or manual edits outside this conversation.
 4. **Write action lines accordingly:**
    - For changes you have context for: full action lines from session knowledge.
    - For changes you don't: apply the "When You Lack Conversation Context" rules below — write only what the diff evidences.
 
-The commit message must account for ALL staged changes, not just the ones you worked on. Ignoring changes you didn't produce is worse than writing thin action lines for them.
+The commit message must account for ALL changes in the commit scope, not just the ones you worked on. Ignoring changes you didn't produce is worse than writing thin action lines for them.
 
 ## Examples
 
