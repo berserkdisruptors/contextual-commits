@@ -73,7 +73,7 @@ git diff --cached --stat
 
 From the gathered commit bodies, extract lines matching:
 ```
-^(intent|decision|rejected|constraint|learned|context)\(
+^(intent|decision|rejected|constraint|learned)\(
 ```
 
 Group them by commit (preserve chronological order) and by type (for synthesis).

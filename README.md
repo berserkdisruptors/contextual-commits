@@ -1,8 +1,8 @@
 # Contextual Commits
 
-**Conventional Commits told you WHAT changed. Contextual Commits tell you WHY.**
+**Conventional Commits standardised WHAT changed. Contextual Commits add WHY.**
 
-A convention for embedding structured reasoning in git commit bodies. Every commit carries not just the code change, but the intent, decisions, rejected alternatives, constraints, and learnings that shaped it.
+A convention for embedding decision traces in git commit bodies. Every commit carries not just the code change, but the intent and reasoning that shaped it — structured as typed action lines that any tool can parse and any agent can query.
 
 No new tools. No infrastructure. Just better commits.
 
@@ -15,9 +15,11 @@ Every AI coding session produces three outputs:
 2. **Decisions** — which approach was chosen, what was rejected, what constraints were found. **Lost.**
 3. **Understanding** — deeper comprehension of how the system works and why. **Lost.**
 
-Two-thirds of every session's intellectual output evaporates when the conversation window closes. The next session starts from zero. The next developer starts from zero. The next agent starts from zero.
+Two-thirds of every session's intellectual output evaporates when the conversation window closes. This is session context — ephemeral by nature, critical by impact. It lives in the agent's conversation window and disappears when the window is compacted or closed. Storing it in local file artifacts (specs, plans, session logs) has been tried; it creates version control friction, context window bloat, and maintenance overhead for information that is fundamentally transient. The problem is not that session context needs a new storage location. It needs to travel with the thing that already persists: the commit.
 
-Git already tracks everything about a session — branches track scope, diffs track changes, commit history tracks progression. The one thing it doesn't track is **reasoning**. The commit body has always been available for this. We just never needed it before AI.
+And there is a second, quieter problem. Git history is no longer primarily read by humans. Agents are the most frequent consumers of commit logs — at session start, during exploration, when assessing impact. Yet the standard AI-generated commit body restates what the diff already shows: "Added GoogleAuthProvider class. Created callback route handler. Updated auth middleware." This is noise. An agent reading the diff gets the same information. What it cannot get from the diff is why passport.js was chosen over auth0-sdk, what constraint forced the callback route pattern, or what the developer was actually trying to achieve. Current commit conventions optimise for human skimming. The opportunity is to optimise for agent comprehension.
+
+Git already tracks everything about a session — branches track scope, diffs track changes, commit history tracks progression. The one thing it doesn't track is reasoning. The commit body has always been available for this. We just never needed it before AI.
 
 ## The Convention
 
@@ -44,8 +46,15 @@ The subject line tells you **what**. The body tells you **why**.
 | `decision(scope)` | What was chosen when alternatives existed | `decision(queue): SQS over RabbitMQ for managed scaling` |
 | `rejected(scope)` | What was considered and discarded, with reason | `rejected(queue): RabbitMQ — requires self-managed infra` |
 | `constraint(scope)` | Hard limits that shaped the approach | `constraint(api): max 5MB payload, 30s timeout` |
-| `learned(scope)` | Discoveries that save time next session | `learned(stripe): presentment ≠ settlement currency` |
-| `context(scope)` | References to related decisions or prior work | `context(payments): see ADR-007 for background` |
+| `learned(scope)` | Discovered facts that prevent future mistakes | `learned(stripe): presentment ≠ settlement currency` |
+
+**Five types. Each captures signal no other type covers. Each is immediately useful to an agent starting a new session.**
+
+- `intent` — what the user is trying to achieve. Without it, the agent reverse-engineers purpose from code.
+- `decision` — what approach was chosen. Without it, the agent doesn't know if a pattern is intentional or accidental.
+- `rejected` — what was tried and discarded. Without it, the agent re-explores dead ends. The highest-value type.
+- `constraint` — hard limits on the implementation. Without it, the agent discovers them by failing.
+- `learned` — API quirks, non-obvious behaviors, documentation gaps. Without it, the agent wastes cycles rediscovering gotchas. Distinct from constraints: constraints are boundaries to enforce, learnings are traps to avoid.
 
 **scope** is a human-readable label — the domain area, module, or concept. Use whatever vocabulary is natural in your project: `auth`, `payment-flow`, `api-contracts`, `session-store`.
 
@@ -54,9 +63,11 @@ Contextual commits capture **intent** (what you're building and why) and **histo
 ### Design Principles
 
 - **Extends, never breaks.** The subject line is a standard Conventional Commit. All existing tooling (commitlint, semantic-release, changelog generators) works unchanged.
+- **Agent-native, human-readable.** Designed for agents to parse and query programmatically. Humans benefit as a byproduct — `git log` shows useful context immediately, but the format is optimised for machine consumption.
+- **Signal the diff can't show.** Every action line must carry information that is not already visible in the code changes. If the diff explains it, don't repeat it. This is the core quality rule.
 - **Additive, not prescriptive.** Use only the action types that apply. A typo fix needs zero action lines. A major refactoring might have ten.
-- **Human-readable first.** Anyone running `git log` sees useful context immediately. No tooling required to benefit.
-- **Machine-queryable.** `git log --all --grep="rejected(auth"` instantly finds every rejected auth approach. Simple regex extracts all action lines from any commit body.
+- **Zero infrastructure.** No database, no external service, no configuration file, no CI step. The convention lives in git commit bodies — the most universal, portable, and durable storage in software development.
+- **Queryable by default.** `git log --all --grep="rejected(auth"` instantly finds every rejected auth approach across the entire history. Simple regex extracts all action lines from any commit range.
 
 ## Reference Implementation
 
@@ -111,7 +122,7 @@ Created callback route handler at /api/auth/callback/google.
 Added refresh token logic with offline access scope.
 Updated auth middleware to support multiple providers.
 ```
-This describes WHAT the diff contains. The diff already shows that. Zero signal.
+This describes WHAT the diff contains. The diff already shows that. Zero signal added.
 
 **Contextual commit:**
 ```
@@ -150,18 +161,19 @@ The conventional commit subject is sufficient. Don't add noise.
 
 ## Why This Matters
 
-### For humans
-
-- **Onboarding** — new engineers read `git log` and understand not just what changed but why
-- **Code review** — reviewers see reasoning alongside the diff, reducing back-and-forth
-- **Knowledge preservation** — when someone leaves, their decisions stay in the history
-
 ### For AI agents
 
 - **No re-proposing rejected approaches** — `rejected` lines prevent agents from exploring dead ends
 - **Constraint awareness** — `constraint` lines surface limits before the agent hits them
 - **Faster session starts** — `/recall` gives agents accumulated project knowledge immediately
-- **Compounding intelligence** — each session's learnings benefit every future session
+- **Compounding intelligence** — each session's decision trace benefits every future session
+- **Reduced diff-restating noise** — the convention explicitly discourages repeating what the diff shows
+
+### For humans
+
+- **Onboarding** — new engineers read `git log` and understand not just what changed but why
+- **Code review** — reviewers see reasoning alongside the diff, reducing back-and-forth
+- **Knowledge preservation** — when someone leaves, their decisions stay in the history
 
 ### For your codebase
 
@@ -201,7 +213,7 @@ git log --all --grep="^constraint("
 git log main..HEAD --grep="^decision("
 
 # Extract all action lines from a branch
-git log main..HEAD --format="%b" | grep -E "^(intent|decision|rejected|constraint|learned|context)\("
+git log main..HEAD --format="%b" | grep -E "^(intent|decision|rejected|constraint|learned)\("
 ```
 
 **What should the scope be?**

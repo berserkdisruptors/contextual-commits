@@ -90,14 +90,6 @@ Something discovered during implementation that would save time in future sessio
 
 **When to use:** "I wish I'd known this before I started" moments. Library gotchas, API surprises, non-obvious behaviors.
 
-### `context(scope): ...`
-References to related decisions, prior work, or relevant background. Links rather than duplicates.
-
-- `context(payments): see ADR-007 for original single-currency decision`
-- `context(auth-migration): relates to the March 2025 security audit findings`
-- `context(api-versioning): mobile API v3 contract does not include rate limit headers yet`
-
-**When to use:** When the change connects to broader system knowledge that isn't in git history. Keep it brief — a pointer, not an explanation.
 
 ## Examples
 
@@ -133,7 +125,6 @@ constraint(stripe-integration): Stripe requires currency at PaymentIntent creati
 constraint(database-migration): existing amount columns need companion currency columns, not replacement
 learned(stripe-multicurrency): presentment currency vs settlement currency are different Stripe concepts
 learned(exchange-rates): Stripe handles conversion, we should NOT store our own rates
-context(payments): see ADR-007 for original single-currency decision and constraints
 ```
 
 ### Mid-implementation pivot
@@ -157,7 +148,6 @@ Sometimes you're committing changes you didn't produce — pasted code, external
 
 What you CAN infer from a diff alone:
 - `decision(scope)` — if a clear technical choice is visible (new dependency added, pattern adopted, library switched). Example: `decision(http-client): switched from axios to native fetch` is visible from the diff.
-- `context(scope)` — if the change clearly relates to something already documented.
 
 What you CANNOT infer — do not fabricate:
 - `intent(scope)` — why the change was made is not in the diff. Don't restate what the diff shows.
