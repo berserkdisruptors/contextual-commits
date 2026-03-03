@@ -188,18 +188,23 @@ Auto-detects your agent (Claude Code, Cursor, Copilot, Codex, Gemini CLI, and [4
 ## FAQ
 
 **What about repos that already use conventional commits but not contextual commits?**
+
 `/recall` still works — it falls back to summarizing recent activity from commit subjects and file change patterns. The output is thinner (WHAT happened, not WHY) but still provides useful orientation. Adopting contextual commits is incremental: new commits carry action lines, old commits remain as they are. The context accumulates forward.
 
 **What if the agent wasn't part of the reasoning (copy-paste, external changes)?**
+
 The skill handles this explicitly. The agent only writes action lines for what it can observe in the diff — typically a `decision` line if a clear technical choice is visible (new dependency, pattern change). It does not fabricate `intent`, `rejected`, or `constraint` lines it has no evidence for. A clean conventional commit with no action lines is always better than invented context.
 
 **What happens with squash merges?**
+
 When squash-merging, git concatenates all commit bodies. The result is a chronological trail of typed, scoped action lines — agents parse and group these without issue. No cleanup needed. Regular merges, rebases, and cherry-picks preserve commit bodies intact.
 
 **What about git worktrees?**
+
 Worktrees share the same `.git` database. All contextual commits are visible and queryable from any worktree — `git log --grep`, `/recall`, and all action line queries work identically regardless of which worktree you're in. No special handling needed.
 
 **What if my agent doesn't support Agent Skills?**
+
 You can still write contextual commits manually. The convention is the value — the skill just automates it. Add the instructions to your CLAUDE.md, .cursorrules, or equivalent project configuration.
 
 ## What This Is Not
