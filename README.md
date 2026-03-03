@@ -155,25 +155,25 @@ The conventional commit subject is sufficient. Don't add noise.
 
 ## Why This Matters
 
-### For AI agents
+### The context that disappears
 
-- **No re-proposing rejected approaches** — `rejected` lines prevent agents from exploring dead ends
-- **Constraint awareness** — `constraint` lines surface limits before the agent hits them
-- **Faster session starts** — `/recall` gives agents accumulated project knowledge immediately
-- **Compounding intelligence** — each session's decision trace benefits every future session
-- **Reduced diff-restating noise** — the convention explicitly discourages repeating what the diff shows
+The agent proposes an approach you already tried and rejected last session — but the reasoning that ruled it out died with the conversation window. It writes a clean implementation that violates a constraint it has no way of knowing about, and discovers it by failing. Three months later, another session sees a pattern in the code that looks arbitrary — it wasn't, but the reason existed in a conversation that no longer exists.
 
-### For humans
+Same problem, three forms. AI coding sessions produce decisions and understanding alongside code, but only the code survives in git.
 
-- **Onboarding** — new engineers read `git log` and understand not just what changed but why
-- **Code review** — reviewers see reasoning alongside the diff, reducing back-and-forth
-- **Knowledge preservation** — when someone leaves, their decisions stay in the history
+### What agents can and cannot recover
 
-### For your codebase
+Several categories of context shape AI coding quality. Most can be reverse-engineered from the codebase: architecture, code patterns, test strategy, naming conventions. An agent that reads your code can figure these out.
 
-- **Self-documenting history** — the repo's own git log becomes its most reliable documentation
-- **Zero infrastructure** — no database, no external service, no new workflow. Just git.
-- **No merge conflicts** — unlike documentation files, commit bodies are append-only history
+Two categories cannot be reverse-engineered: **what you intended** and **what you already tried**. Intent and historical context — the decisions made, alternatives rejected, constraints discovered, lessons learned — exist only in human memory and disappearing conversations.
+
+Contextual commits capture exactly these two. Not because they're the most interesting, but because they're the ones that would otherwise be permanently lost.
+
+### Compounding
+
+The first contextual commit saves one future re-exploration. The hundredth means an agent starting a fresh session inherits every decision, rejection, constraint, and learning from every previous session — across every contributor.
+
+This is not documentation you maintain. It's append-only history that accumulates as a side effect of committing code. No files to keep current. No wiki pages to update. No merge conflicts. Just git.
 
 ## FAQ
 
