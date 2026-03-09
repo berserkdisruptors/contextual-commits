@@ -210,11 +210,9 @@ You can invoke `/recall` explicitly, or let the agent call it on its own — it'
 
 
 
----
+<!-- ---
 
-For consistent scoping, broader context coverage, automated context maintenance, agent-native tooling, and richer context recall, see [Engraph](https://github.com/berserkdisruptors/engraph) — the context layer for agentic coding, where contextual commits are only the beginning.
-
----
+For consistent scoping, broader context coverage, automated context maintenance, agent-native tooling, and richer context recall, see [Engraph](https://github.com/berserkdisruptors/engraph) — the context layer for agentic coding, where contextual commits are only the beginning. -->
 
 ## License
 
