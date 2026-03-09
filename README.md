@@ -76,7 +76,7 @@ This is not documentation you maintain. It's append-only history that accumulate
 
 ### Format
 
-A contextual commit uses the commit body to carry structured context. The subject line remains a standard, human-readable summary — compatible with Conventional Commits, Gitmoji, or any other subject line convention. The body extends it with typed action lines:
+A contextual commit uses the commit body to carry structured context. The subject line is a standard [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/). The body extends it with typed action lines:
 
 ```
 <type>(<scope>): <description>
